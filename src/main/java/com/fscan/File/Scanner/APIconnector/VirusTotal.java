@@ -1,13 +1,13 @@
 package com.fscan.File.Scanner.APIconnector;
 
-
-import com.fscan.File.Scanner.service.FileAuditService;
 import com.fscan.File.Scanner.utils.Validators;
 import com.fscan.File.Scanner.utils.evalJSON;
 import com.fscan.File.Scanner.utils.sha256;
 import okhttp3.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -31,6 +31,7 @@ public class VirusTotal {
         scanHex = rb.getString("url-scan-hex");
         scanId = rb.getString("url-scan-id");
         upload = rb.getString("url-upload");
+
     }
 
 
@@ -90,14 +91,9 @@ public class VirusTotal {
     }
 
 
-    public static String ScanById(String analysisID,FileAuditService fileAuditService,Long id){
+    public static String ScanById(String analysisID){
 
         String URL = scanId + analysisID;
-        fileAuditService.updateStatus(id,"Scanning using AnalysisID");
-        fileAuditService.updateDT(id);
-
-//        fileAuditService.updateStatus(id,"Scanning using analyis Id");
-//        fileAuditService.updateDT(id);
 
         HttpRequest req = HttpRequest.newBuilder().GET()
                 .uri(URI.create(URL))
@@ -116,22 +112,14 @@ public class VirusTotal {
 
         if(Validators.IsValidResponse(Response.body())){
 
-            fileAuditService.updateStatus(id,"Scanning Completed(using analysis_id)");
-            fileAuditService.updateDT(id);
-
             return evalJSON.StatsByAId(Response.body());
 
         }
-
-        fileAuditService.updateStatus(id,"Queued at Virus Total Database");
-        fileAuditService.updateDT(id);
-
-
         return "Please try again after some time";// even for error
 
     }
 
-    public static String ScanByFile(MultipartFile file,FileAuditService fileAuditService,Long id){
+    public static String ScanByFile(MultipartFile file){
         String originalFileName = file.getOriginalFilename();
         String name = file.getName();
         String contentType = file.getContentType();
@@ -147,39 +135,28 @@ public class VirusTotal {
             return "unable to generate SHA256 for given file.";
         }
 
-
-        fileAuditService.updateSHA256(id,hexCode);
-        fileAuditService.updateStatus(id,"Scanning Using SHA256");
-        fileAuditService.updateDT(id);
-
         String result = evalJSON.analysisStats(VirusTotal.ScanByHex(hexCode));
         //get results by using HEXcode
         //result will be either a proper stats(malicious,harmless,undetected)
         // or Not foundError (if hex code is not present in DB).
         if(!Objects.equals(result, "NotFoundError")){
-            fileAuditService.updateStatus(id,"Scanning Completed(using SHA256)");
-            fileAuditService.updateDT(id);
             return result;//if found in Database.
         }
 
-
         MultipartFile mockMultipartFile = new MockMultipartFile(name,originalFileName, contentType, content);
-        // initial file will be available for GC as one request is made(Scan by hex-code)
+        // initial file will be available for GC as one request is made(Scan by hexcode)
         // so creating a multipart file.
 
         String analysis_id = VirusTotal.UploadFile(mockMultipartFile);//Getting Analysis ID from VT
         if(Validators.IsAnalyisId(analysis_id)){
             //we received a proper analysis_id
-            fileAuditService.updateStatus(id,"File uploaded to Virus Total Database");
-            fileAuditService.updateAID(id,analysis_id);
-            fileAuditService.updateDT(id);
             return "File uploaded to Virus Total DataBase" +
                     " with analysis ID: \n " +analysis_id;
 
         }
         return analysis_id;
         //any error while
-        //uploading the file,return the error message as String.
+        //uploading the file.
 
 
     }
