@@ -1,16 +1,17 @@
 package com.fscan.File.Scanner.APIconnector;
 
+
+import com.fscan.File.Scanner.service.FileAuditService;
 import com.fscan.File.Scanner.utils.Validators;
 import com.fscan.File.Scanner.utils.evalJSON;
 import com.fscan.File.Scanner.utils.sha256;
 import okhttp3.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
-
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -19,10 +20,12 @@ import java.net.http.HttpResponse;
 import java.util.Objects;
 import java.util.ResourceBundle;
 
+@Component
 public class VirusTotal {
 
     private static final String apiKey,scanHex,scanId,upload;
-    private static final Logger log = LoggerFactory.getLogger(VirusTotal.class);
+    private final Logger log = LoggerFactory.getLogger(VirusTotal.class);
+
 
     static {
         ResourceBundle rb = ResourceBundle.getBundle("api-config");
@@ -31,11 +34,10 @@ public class VirusTotal {
         scanHex = rb.getString("url-scan-hex");
         scanId = rb.getString("url-scan-id");
         upload = rb.getString("url-upload");
-
     }
 
 
-    private static String ScanByHex(String hex_code){
+    private String ScanByHex(String hex_code) throws IOException, InterruptedException {
         //After one Client Response the MultiPartfile
         // will be removed from our temp database which cases an error in uploading the file
         log.info("Calculating HEX");
@@ -46,17 +48,15 @@ public class VirusTotal {
                 .setHeader("X-Apikey", apiKey).build();
         HttpClient client = HttpClient.newBuilder().build();
         HttpResponse<String> Response = null;
-        try {
+
             Response = client.send(req, HttpResponse.BodyHandlers.ofString());
             return Response.body();
-        } catch (Exception e) {
-            return "00";
-        }
+
 
     }
 
+    private String UploadFile(MultipartFile multipartFile)  {
 
-    private static String UploadFile(MultipartFile multipartFile)  {
 
         OkHttpClient client = new OkHttpClient();
 
@@ -81,6 +81,7 @@ public class VirusTotal {
                 .build();
 
         try {
+//            Response response = restTemplate.execute(upload, HttpMethod.POST,request);
             Response response = client.newCall(request).execute();
             return evalJSON.analysisId(response.body().string());
 
@@ -90,10 +91,14 @@ public class VirusTotal {
 
     }
 
-
-    public static String ScanById(String analysisID){
+    public String ScanById(String analysisID,FileAuditService fileAuditService,Long id){
 
         String URL = scanId + analysisID;
+        fileAuditService.updateStatus(id,"Scanning using AnalysisID");
+        fileAuditService.updateDT(id);
+
+//        fileAuditService.updateStatus(id,"Scanning using analyis Id");
+//        fileAuditService.updateDT(id);
 
         HttpRequest req = HttpRequest.newBuilder().GET()
                 .uri(URI.create(URL))
@@ -112,14 +117,22 @@ public class VirusTotal {
 
         if(Validators.IsValidResponse(Response.body())){
 
+            fileAuditService.updateStatus(id,"Scanning Completed(using analysis_id)");
+            fileAuditService.updateDT(id);
+
             return evalJSON.StatsByAId(Response.body());
 
         }
+
+        fileAuditService.updateStatus(id,"Queued at Virus Total Database");
+        fileAuditService.updateDT(id);
+
+
         return "Please try again after some time";// even for error
 
     }
 
-    public static String ScanByFile(MultipartFile file){
+    public String ScanByFile(MultipartFile file,FileAuditService fileAuditService,Long id){
         String originalFileName = file.getOriginalFilename();
         String name = file.getName();
         String contentType = file.getContentType();
@@ -135,28 +148,48 @@ public class VirusTotal {
             return "unable to generate SHA256 for given file.";
         }
 
-        String result = evalJSON.analysisStats(VirusTotal.ScanByHex(hexCode));
+
+        fileAuditService.updateSHA256(id,hexCode);
+        fileAuditService.updateStatus(id,"Scanning Using SHA256");
+        fileAuditService.updateDT(id);
+
+        String responseForHexScan =null;
+        try{
+            responseForHexScan = this.ScanByHex(hexCode);
+        }
+        catch (Exception e){
+            return "Error in fetching response from VT end point";
+        }
+
+        String result = evalJSON.analysisStats(responseForHexScan);
+
         //get results by using HEXcode
         //result will be either a proper stats(malicious,harmless,undetected)
         // or Not foundError (if hex code is not present in DB).
         if(!Objects.equals(result, "NotFoundError")){
+            fileAuditService.updateStatus(id,"Scanning Completed(using SHA256)");
+            fileAuditService.updateDT(id);
             return result;//if found in Database.
         }
 
+
         MultipartFile mockMultipartFile = new MockMultipartFile(name,originalFileName, contentType, content);
-        // initial file will be available for GC as one request is made(Scan by hexcode)
+        // initial file will be available for GC as one request is made(Scan by hex-code)
         // so creating a multipart file.
 
-        String analysis_id = VirusTotal.UploadFile(mockMultipartFile);//Getting Analysis ID from VT
+        String analysis_id = this.UploadFile(mockMultipartFile);//Getting Analysis ID from VT
         if(Validators.IsAnalyisId(analysis_id)){
             //we received a proper analysis_id
+            fileAuditService.updateStatus(id,"File uploaded to Virus Total Database");
+            fileAuditService.updateAID(id,analysis_id);
+            fileAuditService.updateDT(id);
             return "File uploaded to Virus Total DataBase" +
                     " with analysis ID: \n " +analysis_id;
 
         }
         return analysis_id;
         //any error while
-        //uploading the file.
+        //uploading the file,return the error message as String.
 
 
     }
