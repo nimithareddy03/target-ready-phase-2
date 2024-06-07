@@ -10,7 +10,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.net.URI;
@@ -81,7 +80,6 @@ public class VirusTotal {
                 .build();
 
         try {
-//            Response response = restTemplate.execute(upload, HttpMethod.POST,request);
             Response response = client.newCall(request).execute();
             return evalJSON.analysisId(response.body().string());
 
@@ -97,8 +95,6 @@ public class VirusTotal {
         fileAuditService.updateStatus(id,"Scanning using AnalysisID");
         fileAuditService.updateDT(id);
 
-//        fileAuditService.updateStatus(id,"Scanning using analyis Id");
-//        fileAuditService.updateDT(id);
 
         HttpRequest req = HttpRequest.newBuilder().GET()
                 .uri(URI.create(URL))
@@ -148,7 +144,7 @@ public class VirusTotal {
             return "unable to generate SHA256 for given file.";
         }
 
-
+        //Updating Status and time in DB.
         fileAuditService.updateSHA256(id,hexCode);
         fileAuditService.updateStatus(id,"Scanning Using SHA256");
         fileAuditService.updateDT(id);

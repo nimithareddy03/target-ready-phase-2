@@ -2,14 +2,11 @@ package com.fscan.File.Scanner.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-
-
 import java.time.LocalDateTime;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-
 
 @Entity
 @Table(name = "file_logs",uniqueConstraints = {
