@@ -1,21 +1,24 @@
 package com.fscan.File.Scanner.APIconnector;
 
 
+import com.fscan.File.Scanner.entity.FileAudit;
 import com.fscan.File.Scanner.service.FileAuditService;
 import com.fscan.File.Scanner.utils.Validators;
 import com.fscan.File.Scanner.utils.evalJSON;
 import com.fscan.File.Scanner.utils.sha256;
-import okhttp3.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.*;
+import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.stereotype.Component;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.util.Objects;
 import java.util.ResourceBundle;
 
@@ -25,7 +28,7 @@ public class VirusTotal {
     private static final String apiKey,scanHex,scanId,upload;
     private final Logger log = LoggerFactory.getLogger(VirusTotal.class);
 
-
+    private final RestTemplate restTemplate = new RestTemplate();;
     static {
         ResourceBundle rb = ResourceBundle.getBundle("api-config");
         // store the name of the implementation clas in a static variable
@@ -36,93 +39,87 @@ public class VirusTotal {
     }
 
 
-    private String ScanByHex(String hex_code) throws IOException, InterruptedException {
-        //After one Client Response the MultiPartfile
+    private String ScanByHex(String hex_code)  {
+        //After one Client Response the MultiPart-file
         // will be removed from our temp database which cases an error in uploading the file
-        log.info("Calculating HEX");
-        String URL = scanHex + hex_code;
-        HttpRequest req = HttpRequest.newBuilder().GET()
-                .uri(URI.create(URL))
-                .setHeader("accept", "application/json")
-                .setHeader("X-Apikey", apiKey).build();
-        HttpClient client = HttpClient.newBuilder().build();
-        HttpResponse<String> Response = null;
+        log.info("Scanning using HEX");
+        String url = scanHex + hex_code;
 
-            Response = client.send(req, HttpResponse.BodyHandlers.ofString());
-            return Response.body();
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("x-apikey", apiKey);
+        HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
+        ResponseEntity<String> response = null;
+        try{
+            response = restTemplate.exchange(url, HttpMethod.GET, requestEntity,String.class);
+            return response.getBody();
+
+        }catch (HttpClientErrorException.NotFound e){
+            log.info("received an error While scanning using Hex"+e);
+            return "{\"code\":\"NotFoundError\"}"; // Return the Error so that it can be converted to JSON.
+        }
+
 
 
     }
 
     private String UploadFile(MultipartFile multipartFile)  {
 
-
-        OkHttpClient client = new OkHttpClient();
-
-        RequestBody fileBody = null;
+        byte[] fileBytes= null;
         try {
-            fileBody = RequestBody.create(MediaType.parse(multipartFile.getContentType()), multipartFile.getBytes());
+            fileBytes = multipartFile.getBytes();
         } catch (IOException e) {
-            return e + " at creating Request Body for uploading file into VT DB.";
+            log.warn("Error in reading Multipart contents.");
+            return "Unable to read multipart file.";
         }
-        log.info("uploading file");
-        MultipartBody multipartBody = new MultipartBody.Builder()
-                .setType(MultipartBody.FORM)  // Header to show we are sending a Multipart Form Data
-                .addFormDataPart("file", multipartFile.getOriginalFilename(),fileBody) // file param
-                .build();
+        //generating Headers
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("x-apikey", apiKey);
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
-        Request request = new Request.Builder()
-                .url(upload)
-                .post(multipartBody)
-                .addHeader("accept", "application/json")
-                .addHeader("X-Apikey", apiKey)
-                .addHeader("content-type", "multipart/form-data; boundary=---011000010111000001101001")
-                .build();
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("file", new ByteArrayResource(fileBytes) {
+            @Override
+            public String getFilename() {
+                return multipartFile.getName();
+            }
+        });
 
-        try {
-            Response response = client.newCall(request).execute();
-            return evalJSON.analysisId(response.body().string());
+        HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
 
-        } catch (IOException e) {
-            return  e + " while getting Response form upload file end point.";
-        }
+        //getting Response.
+        ResponseEntity<String> response = restTemplate.postForEntity(upload, requestEntity, String.class);
+
+        return evalJSON.analysisId(response.getBody());//Sending the Response to extract analysis Id.
 
     }
 
-    public String ScanById(String analysisID,FileAuditService fileAuditService,Long id){
+    public String ScanByAnalysisId(String analysisID, FileAuditService fileAuditService, Long id){
 
-        String URL = scanId + analysisID;
+        String url = scanId + analysisID;
         fileAuditService.updateStatus(id,"Scanning using AnalysisID");
         fileAuditService.updateDT(id);
 
 
-        HttpRequest req = HttpRequest.newBuilder().GET()
-                .uri(URI.create(URL))
-                .setHeader("accept", "application/json")
-                .setHeader("X-Apikey", apiKey).build();
-        HttpClient client = HttpClient.newBuilder().build();
-        HttpResponse<String> Response = null;
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("x-apikey", apiKey);
 
-        try {
-            Response = client.send(req, HttpResponse.BodyHandlers.ofString());
+        HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
 
-        } catch (Exception e) {
-            return e + " while getting response from analysis id end point";
-        }
+        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, requestEntity,String.class);
 
 
-        if(Validators.IsValidResponse(Response.body())){
+        if(Validators.IsValidResponse(response.getBody())){
 
+            //Updating the Audit Date base
             fileAuditService.updateStatus(id,"Scanning Completed(using analysis_id)");
             fileAuditService.updateDT(id);
 
-            return evalJSON.StatsByAId(Response.body());
-
+            return evalJSON.StatsByAId(response.getBody());
         }
 
+        //Since the Status of the uploaded file is queued for Scanning
         fileAuditService.updateStatus(id,"Queued at Virus Total Database");
         fileAuditService.updateDT(id);
-
 
         return "Please try again after some time";// even for error
 
@@ -144,20 +141,52 @@ public class VirusTotal {
             return "unable to generate SHA256 for given file.";
         }
 
-        //Updating Status and time in DB.
-        fileAuditService.updateSHA256(id,hexCode);
-        fileAuditService.updateStatus(id,"Scanning Using SHA256");
-        fileAuditService.updateDT(id);
+        //When user tries to upload same file again fetching the result using hex will lead to exhaustion of QUOTA.
+        //if the ScanResults of the corresponding file are present in the audit table. then it can be displayed.
+        //if The ScanResults are not present in the audit Table i.e. analysis id is
+        // generated but user didn't use the other controller to get ScanResults then use the analysisId to generate Results
 
-        String responseForHexScan =null;
+
+        FileAudit savedFileAudit = null;
+        try{
+            savedFileAudit = fileAuditService.findBySHA256(hexCode);
+            Long previousScanId  = savedFileAudit.getId();
+            String previousScanResults = fileAuditService.PreviousScanResults(previousScanId);
+            log.info("file present in fileScanner database.");
+            if(previousScanResults.isEmpty()){
+
+                log.info("User didn't fetch the response using Analysis Id");
+
+                String previousScanAnalysisId = savedFileAudit.getAnalysisId();
+                fileAuditService.findByAnalysisId(previousScanAnalysisId);
+                fileAuditService.updateStatus(id,"Displayed previous Analysis id to User");
+                fileAuditService.updateDT(id);
+
+                return "Please get the results using Analysis id: " + previousScanAnalysisId;
+            }
+
+            fileAuditService.updateStatus(id,"Used previous scan results to Get the malicious status");
+            fileAuditService.updateDT(id);
+
+            return previousScanResults;
+
+        }catch (NullPointerException ex){
+
+            //Updating Status and time in DB.
+            fileAuditService.updateSHA256(id,hexCode);
+            fileAuditService.updateStatus(id,"Scanning Using SHA256");
+            fileAuditService.updateDT(id);
+        }
+
+        String responseForHexScan ="NotFoundError";
         try{
             responseForHexScan = this.ScanByHex(hexCode);
         }
         catch (Exception e){
-            return "Error in fetching response from VT end point";
+            log.warn("Error in Scanning using hash Value");//any exception other than FileNotFound. The application uploades the file to VT db.
         }
 
-        String result = evalJSON.analysisStats(responseForHexScan);
+        String result = evalJSON.analysisStats(responseForHexScan);//any error in
 
         //get results by using HEXcode
         //result will be either a proper stats(malicious,harmless,undetected)

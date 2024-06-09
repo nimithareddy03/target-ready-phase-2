@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 @Service
 public class FileAuditServiceImpl implements FileAuditService {
@@ -73,6 +74,20 @@ public class FileAuditServiceImpl implements FileAuditService {
     public FileAudit findByAnalysisId(String AId) {
         FileAudit savedAudit = fileAuditRepo.findByanalysisId(AId);
         return savedAudit;
+    }
+
+    @Override
+    public FileAudit findBySHA256(String sha256) {
+        FileAudit savedAudit = fileAuditRepo.findBySHA256(sha256);
+        return savedAudit;
+    }
+
+    @Override
+    public String PreviousScanResults(Long id) {
+
+        FileAudit savedAudit = fileAuditRepo.findById(id).get();
+        return savedAudit.getScanResults();
+
     }
 
 

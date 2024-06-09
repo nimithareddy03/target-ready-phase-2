@@ -55,7 +55,7 @@ public class FileControllerServiceImpl implements FileControllerService {
 
         }
 
-        String scanResponse = virusTotal.ScanById(id,fileAuditService,uid);
+        String scanResponse = virusTotal.ScanByAnalysisId(id,fileAuditService,uid);
         if(Validators.isValidResult(scanResponse)){
             String scanResults = Validators.FinalizeVerdict(scanResponse);
 

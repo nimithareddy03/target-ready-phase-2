@@ -22,4 +22,7 @@ public interface FileAuditService {
 
      FileAudit findByAnalysisId(String id);
 
+     FileAudit findBySHA256(String sha256);
+
+     String PreviousScanResults(Long id);
 }

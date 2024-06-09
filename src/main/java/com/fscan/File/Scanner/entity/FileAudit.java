@@ -7,11 +7,10 @@ import java.time.LocalDateTime;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 
 @Entity
-@Table(name = "file_logs",uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"analysisId","SHA256"})
-})
+@Table(name = "file_logs")
 public class FileAudit {
 
     @Id
@@ -36,59 +35,4 @@ public class FileAudit {
     @Column(name = "SHA256",nullable = true)
     private String SHA256;
 
-    public long getId() {
-        return id;
-    }
-
-    public void setId(long id) {
-        this.id = id;
-    }
-
-    public void setFileName(String fileName) {
-        this.fileName = fileName;
-    }
-
-    public void setAnalysisId(String analysisId) {
-        this.analysisId = analysisId;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public void setScanResults(String scanResults) {
-        this.scanResults = scanResults;
-    }
-
-    public void setLast_status_time(LocalDateTime last_status_time) {
-        this.last_status_time = last_status_time;
-    }
-
-    public void setSHA256(String SHA256) {
-        this.SHA256 = SHA256;
-    }
-
-    public String getFileName() {
-        return fileName;
-    }
-
-    public String getAnalysisId() {
-        return analysisId;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public String getScanResults() {
-        return scanResults;
-    }
-
-    public LocalDateTime getLast_status_time() {
-        return last_status_time;
-    }
-
-    public String getSHA256() {
-        return SHA256;
-    }
 }

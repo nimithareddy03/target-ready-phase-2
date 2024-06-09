@@ -32,8 +32,8 @@ dependencies {
 	runtimeOnly("org.postgresql:postgresql");
 	compileOnly("org.projectlombok:lombok:1.18.30")
 	implementation("org.modelmapper:modelmapper:3.2.0")
-
-
+	testImplementation("com.h2database:h2:2.2.224")
+	annotationProcessor("org.projectlombok:lombok:1.18.30")
 
 }
 

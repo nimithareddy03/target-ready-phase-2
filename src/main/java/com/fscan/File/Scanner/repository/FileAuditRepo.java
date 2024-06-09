@@ -6,5 +6,9 @@ import org.springframework.data.rest.core.annotation.RepositoryRestResource;
 
 @RepositoryRestResource
 public interface FileAuditRepo extends JpaRepository<FileAudit,Long> {
+
     FileAudit findByanalysisId(String analysisId);
+
+    FileAudit findBySHA256(String SHA256);
+
 }
