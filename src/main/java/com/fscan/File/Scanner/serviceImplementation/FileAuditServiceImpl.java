@@ -3,12 +3,14 @@ package com.fscan.File.Scanner.serviceImplementation;
 
 import com.fscan.File.Scanner.FileAuditDTO.FileAuditDTO;
 import com.fscan.File.Scanner.entity.FileAudit;
+import com.fscan.File.Scanner.exception.AnalysisIdNotFoundException;
 import com.fscan.File.Scanner.repository.FileAuditRepo;
 import com.fscan.File.Scanner.service.FileAuditService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -71,15 +73,21 @@ public class FileAuditServiceImpl implements FileAuditService {
     }
 
     @Override
-    public FileAudit findByAnalysisId(String AId) {
-        FileAudit savedAudit = fileAuditRepo.findByanalysisId(AId);
-        return savedAudit;
+    public FileAudit findByAnalysisId(String AId) throws AnalysisIdNotFoundException {
+        List<FileAudit> savedAudits = fileAuditRepo.findByanalysisId(AId);
+        if(savedAudits!=null){
+            return savedAudits.get(0);
+        }
+        throw new AnalysisIdNotFoundException("Analysis id is invalid,Please enter a Proper Analysis Id");
     }
 
     @Override
     public FileAudit findBySHA256(String sha256) {
-        FileAudit savedAudit = fileAuditRepo.findBySHA256(sha256);
-        return savedAudit;
+        List<FileAudit> savedAudits = fileAuditRepo.findBySHA256(sha256);
+        if(savedAudits!=null){
+            return savedAudits.get(0);
+        }
+        return null;
     }
 
     @Override

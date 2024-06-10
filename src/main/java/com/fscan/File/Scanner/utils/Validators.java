@@ -1,14 +1,18 @@
 package com.fscan.File.Scanner.utils;
 
 
+import com.fscan.File.Scanner.exception.ScanningUnderProgressException;
 import org.json.JSONObject;
-
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import java.util.Iterator;
 import java.util.Objects;
 
-
+@Component
 public class Validators {
-
-    public static boolean IsAnalyisId(String analysisId){
+    @Autowired
+    private EvalJSON evalJSON;
+    public boolean IsAnalyisId(String analysisId){
 
         int len = analysisId.length();
 
@@ -16,7 +20,7 @@ public class Validators {
 
     }
 
-    public static boolean IsValidResponse(String response) {
+    public boolean IsValidResponse(String response) {
 
         String status = evalJSON.Status(response);
         return Objects.equals(status, "completed");
@@ -36,11 +40,30 @@ public class Validators {
              }
     */
 
-    public static boolean isValidResult(String result){
-        return result.contains("malicious") && result.contains("undetected");
+    public boolean isValidResult(String result) throws ScanningUnderProgressException {
+        if(result.contains("malicious") &&
+                result.contains("undetected") &&
+                result.contains("harmless") &&
+                result.contains("suspicious"))
+        {
+            System.out.println(result);
+            JSONObject entireStats = evalJSON.TextToJSON(result);
+
+            Iterator<String> keys = entireStats.keys();
+            while (keys.hasNext()){
+                String field = keys.next();
+                String value = entireStats.get(field).toString();
+                if( Integer.parseInt(value) >0){
+                    return true;
+                }
+            }
+            throw new ScanningUnderProgressException();
+
+        }
+        return false;
     }
 
-    public static String FinalizeVerdict(String result){
+    public String FinalizeVerdict(String result){
         JSONObject stats = evalJSON.TextToJSON(result);
         int maliciousCount = (int) stats.get("malicious");
         int suspiciousCount = (int) stats.get("suspicious");

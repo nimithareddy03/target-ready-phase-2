@@ -1,13 +1,16 @@
 package com.fscan.File.Scanner.APIconnector;
 
 
-import com.fscan.File.Scanner.entity.FileAudit;
+import com.fscan.File.Scanner.exception.FileAccessException;
 import com.fscan.File.Scanner.service.FileAuditService;
 import com.fscan.File.Scanner.utils.Validators;
-import com.fscan.File.Scanner.utils.evalJSON;
-import com.fscan.File.Scanner.utils.sha256;
+import com.fscan.File.Scanner.utils.EvalJSON;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hashing;
+import com.google.common.io.ByteSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.*;
 import org.springframework.http.MediaType;
@@ -22,11 +25,19 @@ import java.io.IOException;
 import java.util.Objects;
 import java.util.ResourceBundle;
 
+
+
 @Component
 public class VirusTotal {
 
     private static final String apiKey,scanHex,scanId,upload;
     private final Logger log = LoggerFactory.getLogger(VirusTotal.class);
+
+    @Autowired
+    private Validators validators;
+
+    @Autowired
+    private EvalJSON evalJSON;
 
     private final RestTemplate restTemplate = new RestTemplate();;
     static {
@@ -38,9 +49,14 @@ public class VirusTotal {
         upload = rb.getString("url-upload");
     }
 
+    private String ShaGenerator(byte[] fileContents) throws IOException {
+        ByteSource byteSource = ByteSource.wrap(fileContents);
+        HashCode hashCode = byteSource.hash(Hashing.sha256());
+        return hashCode.toString();
+    }
 
     private String ScanByHex(String hex_code)  {
-        //After one Client Response the MultiPart-file
+        //After one Client Response, the MultiPart-file
         // will be removed from our temp database which cases an error in uploading the file
         log.info("Scanning using HEX");
         String url = scanHex + hex_code;
@@ -55,21 +71,22 @@ public class VirusTotal {
 
         }catch (HttpClientErrorException.NotFound e){
             log.info("received an error While scanning using Hex"+e);
-            return "{\"code\":\"NotFoundError\"}"; // Return the Error so that it can be converted to JSON.
+            return "{\"" +
+                        "code" +
+                    "\":\"" +
+                        "NotFoundError" +
+                    "\"}"; // Return the Error so that it can be converted to JSON.
         }
-
-
-
     }
 
-    private String UploadFile(MultipartFile multipartFile)  {
+    private String UploadFile(MultipartFile multipartFile) throws FileAccessException {
 
         byte[] fileBytes= null;
         try {
             fileBytes = multipartFile.getBytes();
         } catch (IOException e) {
             log.warn("Error in reading Multipart contents.");
-            return "Unable to read multipart file.";
+            throw new FileAccessException("in uploading file");
         }
         //generating Headers
         HttpHeaders headers = new HttpHeaders();
@@ -108,7 +125,7 @@ public class VirusTotal {
         ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, requestEntity,String.class);
 
 
-        if(Validators.IsValidResponse(response.getBody())){
+        if(validators.IsValidResponse(response.getBody())){
 
             //Updating the Audit Date base
             fileAuditService.updateStatus(id,"Scanning Completed(using analysis_id)");
@@ -125,7 +142,8 @@ public class VirusTotal {
 
     }
 
-    public String ScanByFile(MultipartFile file,FileAuditService fileAuditService,Long id){
+    public String ScanByFile(MultipartFile file,FileAuditService fileAuditService,Long id) throws FileAccessException {
+
         String originalFileName = file.getOriginalFilename();
         String name = file.getName();
         String contentType = file.getContentType();
@@ -133,52 +151,29 @@ public class VirusTotal {
         try {
             content = file.getBytes();
         } catch (IOException e) {
-            return "Unable to read multipart file";
+            throw new FileAccessException("unable to read multipart file");
         }
 
-        String hexCode = sha256.generate(file);
-        if(hexCode.equals("00")){//unable to generate SHA256 for given file.
-            return "unable to generate SHA256 for given file.";
+        String hexCode = "00";
+        try {
+            hexCode = this.ShaGenerator(content);
+        } catch (IOException ignored) {
+                // unable to generate hex code can be ignored so that file will be sent to uploading.
         }
 
-        //When user tries to upload same file again fetching the result using hex will lead to exhaustion of QUOTA.
-        //if the ScanResults of the corresponding file are present in the audit table. then it can be displayed.
-        //if The ScanResults are not present in the audit Table i.e. analysis id is
-        // generated but user didn't use the other controller to get ScanResults then use the analysisId to generate Results
-
-
-        FileAudit savedFileAudit = null;
-        try{
-            savedFileAudit = fileAuditService.findBySHA256(hexCode);
-            Long previousScanId  = savedFileAudit.getId();
-            String previousScanResults = fileAuditService.PreviousScanResults(previousScanId);
-            log.info("file present in fileScanner database.");
-            if(previousScanResults.isEmpty()){
-
-                log.info("User didn't fetch the response using Analysis Id");
-
-                String previousScanAnalysisId = savedFileAudit.getAnalysisId();
-                fileAuditService.findByAnalysisId(previousScanAnalysisId);
-                fileAuditService.updateStatus(id,"Displayed previous Analysis id to User");
-                fileAuditService.updateDT(id);
-
-                return "Please get the results using Analysis id: " + previousScanAnalysisId;
-            }
-
-            fileAuditService.updateStatus(id,"Used previous scan results to Get the malicious status");
+        if(hexCode.equals("00")){
+            fileAuditService.updateStatus(id,"Unable to Calculate Hex,Uploading in progress.");
             fileAuditService.updateDT(id);
-
-            return previousScanResults;
-
-        }catch (NullPointerException ex){
-
-            //Updating Status and time in DB.
+        }
+        else{
             fileAuditService.updateSHA256(id,hexCode);
             fileAuditService.updateStatus(id,"Scanning Using SHA256");
             fileAuditService.updateDT(id);
         }
 
-        String responseForHexScan ="NotFoundError";
+
+
+        String responseForHexScan ="{}";
         try{
             responseForHexScan = this.ScanByHex(hexCode);
         }
@@ -186,10 +181,9 @@ public class VirusTotal {
             log.warn("Error in Scanning using hash Value");//any exception other than FileNotFound. The application uploades the file to VT db.
         }
 
-        String result = evalJSON.analysisStats(responseForHexScan);//any error in
-
-        //get results by using HEXcode
-        //result will be either a proper stats(malicious,harmless,undetected)
+        String result = evalJSON.analysisStats(responseForHexScan);
+        //any error in getting results by using HEXcode
+        //result will be either a proper stats(Malicious, Suspicious, No Malware found)
         // or Not foundError (if hex code is not present in DB).
         if(!Objects.equals(result, "NotFoundError")){
             fileAuditService.updateStatus(id,"Scanning Completed(using SHA256)");
@@ -203,7 +197,8 @@ public class VirusTotal {
         // so creating a multipart file.
 
         String analysis_id = this.UploadFile(mockMultipartFile);//Getting Analysis ID from VT
-        if(Validators.IsAnalyisId(analysis_id)){
+
+        if(validators.IsAnalyisId(analysis_id)){
             //we received a proper analysis_id
             fileAuditService.updateStatus(id,"File uploaded to Virus Total Database");
             fileAuditService.updateAID(id,analysis_id);
@@ -215,7 +210,6 @@ public class VirusTotal {
         return analysis_id;
         //any error while
         //uploading the file,return the error message as String.
-
 
     }
 }

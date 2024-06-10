@@ -1,6 +1,9 @@
 package com.fscan.File.Scanner.controller;
 
 
+import com.fscan.File.Scanner.exception.AnalysisIdNotFoundException;
+import com.fscan.File.Scanner.exception.FileAccessException;
+import com.fscan.File.Scanner.exception.ScanningUnderProgressException;
 import com.fscan.File.Scanner.service.FileControllerService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -19,16 +22,16 @@ public class FileController {
     private FileControllerService fileControllerService;
 
     @PostMapping("/upload")
-    public ResponseEntity<String> fileHandler(@RequestParam("file") MultipartFile file){
+    public ResponseEntity<String> fileHandler(@RequestParam("file") MultipartFile file) throws FileAccessException, ScanningUnderProgressException {
 
         return fileControllerService.FileHandlerService(file);
 
     }
 
     @PostMapping("/ScanById")
-    public ResponseEntity<String> IdHandler(@RequestParam("id") String id){
+    public ResponseEntity<String> IdHandler(@RequestParam("id") String id) throws AnalysisIdNotFoundException, ScanningUnderProgressException {
 
-        return fileControllerService.AIdHandlerService(id);
+        return fileControllerService.AnalysisIdHandlerService(id);
 
     }
 

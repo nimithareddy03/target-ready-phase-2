@@ -3,6 +3,7 @@ package com.fscan.File.Scanner.service;
 
 import com.fscan.File.Scanner.FileAuditDTO.FileAuditDTO;
 import com.fscan.File.Scanner.entity.FileAudit;
+import com.fscan.File.Scanner.exception.AnalysisIdNotFoundException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -20,7 +21,7 @@ public interface FileAuditService {
 
      void updateScanResults(Long id,String results);
 
-     FileAudit findByAnalysisId(String id);
+     FileAudit findByAnalysisId(String id) throws AnalysisIdNotFoundException;
 
      FileAudit findBySHA256(String sha256);
 

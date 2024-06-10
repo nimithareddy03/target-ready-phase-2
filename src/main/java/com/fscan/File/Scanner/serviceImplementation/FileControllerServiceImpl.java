@@ -3,6 +3,9 @@ package com.fscan.File.Scanner.serviceImplementation;
 import com.fscan.File.Scanner.APIconnector.VirusTotal;
 import com.fscan.File.Scanner.FileAuditDTO.FileAuditDTO;
 import com.fscan.File.Scanner.entity.FileAudit;
+import com.fscan.File.Scanner.exception.AnalysisIdNotFoundException;
+import com.fscan.File.Scanner.exception.FileAccessException;
+import com.fscan.File.Scanner.exception.ScanningUnderProgressException;
 import com.fscan.File.Scanner.service.FileAuditService;
 import com.fscan.File.Scanner.service.FileControllerService;
 import com.fscan.File.Scanner.utils.Validators;
@@ -22,16 +25,20 @@ public class FileControllerServiceImpl implements FileControllerService {
     @Autowired
     private VirusTotal virusTotal;
 
+    @Autowired
+    private Validators validators;
 
-    public ResponseEntity<String> FileHandlerService(MultipartFile file){
+
+    public ResponseEntity<String> FileHandlerService(MultipartFile file) throws FileAccessException, ScanningUnderProgressException {
         FileAuditDTO fileAuditDTO = fileAuditService.save(file.getOriginalFilename(), "File uploaded to DB");
         Long id  = fileAuditDTO.getId();
 
 
         String scanResponse = virusTotal.ScanByFile(file,fileAuditService,id);
 
-        if(Validators.isValidResult(scanResponse)){
-            String scanResults = Validators.FinalizeVerdict(scanResponse);
+        if(validators.isValidResult(scanResponse)){
+
+            String scanResults = validators.FinalizeVerdict(scanResponse);
             fileAuditService.updateScanResults(id,scanResults);
             fileAuditService.updateDT(id);
 
@@ -42,22 +49,14 @@ public class FileControllerServiceImpl implements FileControllerService {
     }
 
     @Override
-    public ResponseEntity<String> AIdHandlerService(String id) {
+    public ResponseEntity<String> AnalysisIdHandlerService(String id) throws AnalysisIdNotFoundException, ScanningUnderProgressException {
 
         FileAudit fileAuditDTO = fileAuditService.findByAnalysisId(id);
-        Long uid = null;
-        try{
-            uid  = fileAuditDTO.getId();
-        }
-        catch(NullPointerException ex){
-            return new ResponseEntity<>("Analysis Id is not present in database. " +
-                    "\n Enter a proper analysis Id",HttpStatus.BAD_REQUEST);
-
-        }
+        Long uid  = fileAuditDTO.getId();
 
         String scanResponse = virusTotal.ScanByAnalysisId(id,fileAuditService,uid);
-        if(Validators.isValidResult(scanResponse)){
-            String scanResults = Validators.FinalizeVerdict(scanResponse);
+        if(validators.isValidResult(scanResponse)){
+            String scanResults = validators.FinalizeVerdict(scanResponse);
 
             fileAuditService.updateScanResults(uid,scanResults);
             fileAuditService.updateDT(uid);
