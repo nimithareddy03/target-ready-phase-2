@@ -11,6 +11,9 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 
 import java.time.LocalDateTime;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(connection = EmbeddedDatabaseConnection.H2)
@@ -102,8 +105,8 @@ public class FileAuditRepositoryTests {
         fileAuditRepo.save(fileAudit2);
         fileAuditRepo.save(fileAudit3);
 
-        FileAudit recordRetrievedByQuery1 = fileAuditRepo.findByanalysisId("1234566");
-        Assertions.assertThat(recordRetrievedByQuery1).isNull();
+        List<FileAudit> recordRetrievedByQuery1 = fileAuditRepo.findByanalysisId("1234566");
+        assertTrue(recordRetrievedByQuery1.isEmpty(), "Expected an empty list but got a non-empty list");
 
     }
 
@@ -138,10 +141,8 @@ public class FileAuditRepositoryTests {
         fileAuditRepo.save(fileAudit2);
         fileAuditRepo.save(fileAudit3);
 
-        FileAudit recordRetrievedByQuery2 = fileAuditRepo.findByanalysisId("1234567");
+        List<FileAudit> recordRetrievedByQuery2 = fileAuditRepo.findByanalysisId("1234567");
         Assertions.assertThat(recordRetrievedByQuery2).isNotNull();
-        Assertions.assertThat(recordRetrievedByQuery2.getId()).isEqualTo(fileAudit1.getId());
-
-
+        Assertions.assertThat(recordRetrievedByQuery2.get(0).getId()).isEqualTo(fileAudit1.getId());
     }
 }
