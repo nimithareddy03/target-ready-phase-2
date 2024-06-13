@@ -1,11 +1,18 @@
 package com.fscan.File.Scanner.utils;
 
+
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import java.util.Iterator;
+import java.util.Objects;
 
 @Component
 public class EvalJSON {
+    private static final Logger log = LoggerFactory.getLogger(EvalJSON.class);
+
     public JSONObject TextToJSON(String S){
         return new JSONObject(S);
     }
@@ -75,6 +82,59 @@ public class EvalJSON {
         }
         catch (JSONException ex){
             return ex+ "one the following key is missing data->attributes->status in :"+response;
+        }
+    }
+
+    public JSONObject MalwareDetailsFromAnalysisIdResponse(String responseForAnalysisId) {
+
+        JSONObject entireResponse = TextToJSON(responseForAnalysisId);
+        JSONObject vendor_malware = new JSONObject();
+        try{
+            JSONObject detailedResults = entireResponse.getJSONObject("data")
+                    .getJSONObject("attributes")
+                    .getJSONObject("results");
+
+            Iterator<String> vendors = detailedResults.keys();
+
+            while (vendors.hasNext()){
+                String vendor = vendors.next();
+
+                if(Objects.equals(detailedResults.getJSONObject(vendor).get("category").toString(), "malicious")){
+                    vendor_malware.put(vendor,detailedResults.getJSONObject(vendor).get("result").toString());
+                }
+            }
+
+            return vendor_malware;
+
+        }catch (JSONException ex){
+            log.warn(ex.getMessage());
+            return null;
+        }
+    }
+
+    public JSONObject MalwareDetailsFromHexResponse(String responseForHexScan) {
+        JSONObject entireResponse = TextToJSON(responseForHexScan);
+        JSONObject vendor_malware = new JSONObject();
+        try{
+            JSONObject detailedResults = entireResponse.getJSONObject("data")
+                    .getJSONObject("attributes")
+                    .getJSONObject("last_analysis_results");
+
+            Iterator<String> vendors = detailedResults.keys();
+
+            while (vendors.hasNext()){
+                String vendor = vendors.next();
+
+                if(Objects.equals(detailedResults.getJSONObject(vendor).get("category").toString(), "malicious")){
+                    vendor_malware.put(vendor,detailedResults.getJSONObject(vendor).get("result").toString());
+                }
+            }
+
+            return vendor_malware;
+
+        }catch (JSONException ex){
+            log.warn(ex.getMessage());
+            return null;
         }
     }
 }

@@ -20,7 +20,7 @@ public class FileAudit {
     @Column(name = "FileName",nullable = false)
     private String fileName;
 
-    @Column(name = "AID",nullable = true)
+    @Column(name = "AnalysisId",nullable = true)
     private String analysisId;
 
     @Column(name = "Status",nullable = false)

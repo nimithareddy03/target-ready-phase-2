@@ -36,15 +36,6 @@ public class FileControllerServiceImpl implements FileControllerService {
 
         String scanResponse = virusTotal.ScanByFile(file,fileAuditService,id);
 
-        if(validators.isValidResult(scanResponse)){
-
-            String scanResults = validators.FinalizeVerdict(scanResponse);
-            fileAuditService.updateScanResults(id,scanResults);
-            fileAuditService.updateDT(id);
-
-            return new ResponseEntity<>(scanResults, HttpStatus.ACCEPTED);
-        }
-
         return new ResponseEntity<>(scanResponse,HttpStatus.ACCEPTED);
     }
 
@@ -55,14 +46,7 @@ public class FileControllerServiceImpl implements FileControllerService {
         Long uid  = fileAuditDTO.getId();
 
         String scanResponse = virusTotal.ScanByAnalysisId(id,fileAuditService,uid);
-        if(validators.isValidResult(scanResponse)){
-            String scanResults = validators.FinalizeVerdict(scanResponse);
 
-            fileAuditService.updateScanResults(uid,scanResults);
-            fileAuditService.updateDT(uid);
-
-            return new ResponseEntity<>(scanResults,HttpStatus.ACCEPTED);
-        }
         return new ResponseEntity<>(scanResponse,HttpStatus.ACCEPTED);
 
     }

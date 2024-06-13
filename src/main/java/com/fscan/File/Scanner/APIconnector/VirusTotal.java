@@ -2,12 +2,14 @@ package com.fscan.File.Scanner.APIconnector;
 
 
 import com.fscan.File.Scanner.exception.FileAccessException;
+import com.fscan.File.Scanner.exception.ScanningUnderProgressException;
 import com.fscan.File.Scanner.service.FileAuditService;
 import com.fscan.File.Scanner.utils.Validators;
 import com.fscan.File.Scanner.utils.EvalJSON;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import com.google.common.io.ByteSource;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,7 +32,8 @@ import java.util.ResourceBundle;
 @Component
 public class VirusTotal {
 
-    private static final String apiKey,scanHex,scanId,upload;
+    private static final String scanHex,scanId,upload;
+    private static final String apiKey = System.getenv("API-KEY");
     private final Logger log = LoggerFactory.getLogger(VirusTotal.class);
 
     @Autowired
@@ -43,7 +46,6 @@ public class VirusTotal {
     static {
         ResourceBundle rb = ResourceBundle.getBundle("api-config");
         // store the name of the implementation clas in a static variable
-        apiKey = rb.getString("api-key");
         scanHex = rb.getString("url-scan-hex");
         scanId = rb.getString("url-scan-id");
         upload = rb.getString("url-upload");
@@ -124,14 +126,26 @@ public class VirusTotal {
 
         ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, requestEntity,String.class);
 
+        String responseForAnalysisId = response.getBody();
+        if(validators.IsValidResponse(responseForAnalysisId)){
+            JSONObject detailedResult  = new JSONObject();
 
-        if(validators.IsValidResponse(response.getBody())){
+            String result = evalJSON.StatsByAId(response.getBody());
+            String verdict = validators.FinalizeVerdict(result);
+
+            detailedResult.append("Verdict",verdict);
+
+            if(verdict.equals("Malicious")||verdict.equals("Suspicious")){
+                JSONObject malwareType = evalJSON.MalwareDetailsFromAnalysisIdResponse(responseForAnalysisId);
+                detailedResult.append("Malware type",malwareType);
+            }
 
             //Updating the Audit Date base
             fileAuditService.updateStatus(id,"Scanning Completed(using analysis_id)");
+            fileAuditService.updateScanResults(id,verdict);
             fileAuditService.updateDT(id);
 
-            return evalJSON.StatsByAId(response.getBody());
+            return detailedResult.toString();
         }
 
         //Since the Status of the uploaded file is queued for Scanning
@@ -142,7 +156,7 @@ public class VirusTotal {
 
     }
 
-    public String ScanByFile(MultipartFile file,FileAuditService fileAuditService,Long id) throws FileAccessException {
+    public String ScanByFile(MultipartFile file,FileAuditService fileAuditService,Long id) throws FileAccessException, ScanningUnderProgressException {
 
         String originalFileName = file.getOriginalFilename();
         String name = file.getName();
@@ -186,9 +200,29 @@ public class VirusTotal {
         //result will be either a proper stats(Malicious, Suspicious, No Malware found)
         // or Not foundError (if hex code is not present in DB).
         if(!Objects.equals(result, "NotFoundError")){
-            fileAuditService.updateStatus(id,"Scanning Completed(using SHA256)");
-            fileAuditService.updateDT(id);
-            return result;//if found in Database.
+            try {
+                if(validators.isValidResult(result)){
+                    JSONObject detailedResult = new JSONObject();
+
+                    String verdict = validators.FinalizeVerdict(result);
+                    detailedResult.append("Verdict",verdict);
+
+                    if(verdict.equals("Malicious")||verdict.equals("Suspicious")){
+                        JSONObject malwareType = evalJSON.MalwareDetailsFromHexResponse(responseForHexScan);
+                        detailedResult.append("Malware type",malwareType);
+                    }
+
+                    fileAuditService.updateStatus(id,"Scanning Completed(using SHA256)");
+                    fileAuditService.updateScanResults(id,verdict);
+                    fileAuditService.updateDT(id);
+
+                    return detailedResult.toString();//if found in Database.
+                }
+            } catch (ScanningUnderProgressException e) {
+                fileAuditService.updateStatus(id,"User tried to fetch response without using analysis Id(immediately)");
+                fileAuditService.updateDT(id);
+                throw new ScanningUnderProgressException();
+            }
         }
 
 
@@ -204,7 +238,7 @@ public class VirusTotal {
             fileAuditService.updateAID(id,analysis_id);
             fileAuditService.updateDT(id);
             return "File uploaded to Virus Total DataBase" +
-                    " with analysis ID: \n " +analysis_id;
+                    " with analysis ID: \n " + analysis_id;
 
         }
         return analysis_id;
