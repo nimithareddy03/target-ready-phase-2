@@ -75,10 +75,10 @@ public class FileAuditServiceImpl implements FileAuditService {
     @Override
     public FileAudit findByAnalysisId(String AId) throws AnalysisIdNotFoundException {
         List<FileAudit> savedAudits = fileAuditRepo.findByanalysisId(AId);
-        if(savedAudits!=null){
-            return savedAudits.get(0);
+        if(savedAudits.isEmpty()){
+            throw new AnalysisIdNotFoundException("Analysis id is invalid,Please enter a Proper Analysis Id");
         }
-        throw new AnalysisIdNotFoundException("Analysis id is invalid,Please enter a Proper Analysis Id");
+        return savedAudits.get(0);
     }
 
     @Override

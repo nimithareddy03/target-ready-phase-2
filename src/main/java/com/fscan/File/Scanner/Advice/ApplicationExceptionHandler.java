@@ -1,4 +1,4 @@
-package com.fscan.File.Scanner.advice;
+package com.fscan.File.Scanner.Advice;
 
 
 import com.fscan.File.Scanner.exception.AnalysisIdNotFoundException;
