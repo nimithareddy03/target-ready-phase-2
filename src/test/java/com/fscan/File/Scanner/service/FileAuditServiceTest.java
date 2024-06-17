@@ -5,6 +5,7 @@ import com.fscan.File.Scanner.entity.FileAudit;
 import com.fscan.File.Scanner.exception.AnalysisIdNotFoundException;
 import com.fscan.File.Scanner.repository.FileAuditRepo;
 import com.fscan.File.Scanner.serviceImplementation.FileAuditServiceImpl;
+import com.fscan.File.Scanner.serviceImplementation.FileControllerServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
