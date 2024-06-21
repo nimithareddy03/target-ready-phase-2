@@ -130,7 +130,7 @@ public class FileAuditServiceTest {
     }
 
     @Test
-    void testFindByAnalysisId() throws AnalysisIdNotFoundException {
+    void testFindByAnalysisId_ValidID() throws AnalysisIdNotFoundException {
         String analysisId = "123";
         FileAudit fileAudit = new FileAudit();
         fileAudit.setAnalysisId(analysisId);
@@ -143,9 +143,15 @@ public class FileAuditServiceTest {
         assertEquals(1, results.size());
         assertEquals(analysisId, results.get(0).getAnalysisId());
     }
-
     @Test
-    void testFindBySHA256() {
+    void testFindByAnalysisId_InvalidID(){
+        String invalidAnalysisId = "InvalidId";
+        assertThrows(AnalysisIdNotFoundException.class, () -> {
+            fileAuditService.findByAnalysisId(invalidAnalysisId);
+        });
+    }
+    @Test
+    void testFindBySHA256_NotNull() {
         String sha256 = "abcdef123456";
         FileAudit fileAudit = new FileAudit();
         fileAudit.setSHA256(sha256);
@@ -159,7 +165,17 @@ public class FileAuditServiceTest {
         assertEquals(sha256, results.get(0).getSHA256());
     }
 
-
+    @Test
+    void testFindBySHA256_Null(){
+        // Given
+        String sha256 = "nonexistentSHA256";
+        // When
+        FileAudit foundAudit = fileAuditService.findBySHA256(sha256);
+        // Then
+        assertNull(foundAudit);
+        foundAudit = null;
+        assertNull(foundAudit);
+    }
     @Test
     void testPreviousScanResults() {
         Long id = 1L;

@@ -84,10 +84,10 @@ public class FileAuditServiceImpl implements FileAuditService {
     @Override
     public FileAudit findBySHA256(String sha256) {
         List<FileAudit> savedAudits = fileAuditRepo.findBySHA256(sha256);
-        if(savedAudits!=null){
-            return savedAudits.get(0);
+        if(savedAudits.isEmpty()){
+            return null;
         }
-        return null;
+        return savedAudits.get(0);
     }
 
     @Override

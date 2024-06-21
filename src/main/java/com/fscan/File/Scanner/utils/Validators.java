@@ -58,8 +58,8 @@ public class Validators {
                 }
             }
             throw new ScanningUnderProgressException();
-
         }
+
         return false;
     }
 
