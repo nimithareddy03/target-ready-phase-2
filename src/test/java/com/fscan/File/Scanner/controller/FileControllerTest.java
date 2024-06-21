@@ -36,7 +36,7 @@ public class FileControllerTest {
         // Create a mock MultipartFile
         MultipartFile file = new MockMultipartFile("file", "filename.txt", "text/plain", "some xml".getBytes());
 
-        // Setup the expected response
+        // Set up the expected response
         ResponseEntity<String> expectedResponse = ResponseEntity.status(HttpStatus.ACCEPTED).body("File processed successfully");
         when(fileControllerService.FileHandlerService(file)).thenReturn(expectedResponse);
 
