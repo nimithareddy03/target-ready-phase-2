@@ -2,6 +2,7 @@ plugins {
 	java
 	id("org.springframework.boot") version "3.2.5"
 	id("io.spring.dependency-management") version "1.1.4"
+	id("jacoco")
 }
 
 group = "com.fscan"
@@ -16,8 +17,6 @@ repositories {
 }
 
 dependencies {
-
-
 	implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
 	implementation("org.springframework.boot:spring-boot-starter-web")
 	developmentOnly("org.springframework.boot:spring-boot-devtools")
@@ -27,16 +26,39 @@ dependencies {
 	implementation("com.squareup.okhttp3:okhttp:5.0.0-alpha.14")
 	implementation("org.json:json:20231013")
 	implementation("org.springframework:spring-mock:2.0.8")
-	implementation("org.springframework.boot:spring-boot-starter-data-jpa");
-	implementation("org.springframework.boot:spring-boot-starter-data-rest");
-	runtimeOnly("org.postgresql:postgresql");
+	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+	implementation("org.springframework.boot:spring-boot-starter-data-rest")
+	runtimeOnly("org.postgresql:postgresql")
 	compileOnly("org.projectlombok:lombok:1.18.30")
 	implementation("org.modelmapper:modelmapper:3.2.0")
 	testImplementation("com.h2database:h2:2.2.224")
 	annotationProcessor("org.projectlombok:lombok:1.18.30")
-
 }
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+	finalizedBy(tasks.jacocoTestReport) // Generate report after tests run
+}
+
+jacoco {
+	toolVersion = "0.8.8"
+}
+
+tasks.jacocoTestReport {
+	dependsOn(tasks.test) // Tests are required to run before generating the report
+	reports {
+		xml.required.set(true)
+		csv.required.set(false)
+		html.outputLocation.set(layout.buildDirectory.dir("jacocoHtml"))
+	}
+}
+
+tasks.jacocoTestCoverageVerification {
+	violationRules {
+		rule {
+			limit {
+				minimum = "0.8".toBigDecimal()
+			}
+		}
+	}
 }
