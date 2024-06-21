@@ -51,13 +51,13 @@ public class VirusTotal {
         upload = rb.getString("url-upload");
     }
 
-    private String ShaGenerator(byte[] fileContents) throws IOException {
+    String ShaGenerator(byte[] fileContents) throws IOException {
         ByteSource byteSource = ByteSource.wrap(fileContents);
         HashCode hashCode = byteSource.hash(Hashing.sha256());
         return hashCode.toString();
     }
 
-    private String ScanByHex(String hex_code)  {
+    String ScanByHex(String hex_code)  {
         //After one Client Response, the MultiPart-file
         // will be removed from our temp database which cases an error in uploading the file
         log.info("Scanning using HEX");
@@ -81,7 +81,7 @@ public class VirusTotal {
         }
     }
 
-    private String UploadFile(MultipartFile multipartFile) throws FileAccessException {
+    String UploadFile(MultipartFile multipartFile) throws FileAccessException {
 
         byte[] fileBytes= null;
         try {
