@@ -17,7 +17,7 @@ public class ApplicationExceptionHandler {
     @ExceptionHandler(AnalysisIdNotFoundException.class)
     public String HandelInvalidAnalysisId(AnalysisIdNotFoundException ex){
 
-        return " Please enter a valid `Analysis Id` ";
+        return "Please enter a valid Analysis Id";
 
     }
 
@@ -39,7 +39,7 @@ public class ApplicationExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler(ScanningUnderProgressException.class)
     public String HandelScanningUnderProgress(ScanningUnderProgressException ex){
-        return "File is being scanned at VirusTotal,Please try again after some time";
+        return "File is being scanned at VirusTotal, Please try again after some time";
     }
 
 }

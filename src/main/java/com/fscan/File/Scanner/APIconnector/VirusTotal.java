@@ -137,7 +137,7 @@ public class VirusTotal {
 
             if(verdict.equals("Malicious")||verdict.equals("Suspicious")){
                 JSONObject malwareType = evalJSON.MalwareDetailsFromAnalysisIdResponse(responseForAnalysisId);
-                detailedResult.append("Malware type",malwareType);
+                detailedResult.append("MalwareType",malwareType);
             }
 
             //Updating the Audit Date base
@@ -209,7 +209,7 @@ public class VirusTotal {
 
                     if(verdict.equals("Malicious")||verdict.equals("Suspicious")){
                         JSONObject malwareType = evalJSON.MalwareDetailsFromHexResponse(responseForHexScan);
-                        detailedResult.append("Malware type",malwareType);
+                        detailedResult.append("MalwareType",malwareType);
                     }
 
                     fileAuditService.updateStatus(id,"Scanning Completed(using SHA256)");

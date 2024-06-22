@@ -7,14 +7,12 @@ import com.fscan.File.Scanner.exception.ScanningUnderProgressException;
 import com.fscan.File.Scanner.service.FileControllerService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api")
+@CrossOrigin
 public class FileController {
 
 
